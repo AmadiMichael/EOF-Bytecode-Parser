@@ -403,6 +403,41 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
 #[allow(unused_variables)]
 fn post_validations(eof_container: &EOFContainer, eof_bytecode: &[u8]) {
     // for validating eof bytecode size against contents of the header based on the specs
+
+    // - the total size of a deployed container without container sections must be 13 + 2*num_code_sections + types_size + code_size[0] + ... + code_size[num_code_sections-1] + data_size
+    if eof_container.header.num_container_sections == 0 {
+        let total_code_sizes: u16 = eof_container.header.code_sizes.iter().sum();
+
+        // 13 here is for (2 byte magic + 1 byte version + 1 byte kind type + 2 byte kind length + 1 byte kind code  + 2 bytes num code sections + 1 byte kind data + 2 byte data size + 1 byte terminator)
+        let expected = 13
+            + (2 * eof_container.header.num_code_sections)
+            + eof_container.header.types_size
+            + total_code_sizes
+            + eof_container.header.data_size;
+        assert_eq!(
+            eof_bytecode.len() as u16,
+            expected,
+            "Post condition 1 failed"
+        );
+    } else {
+        // - the total size of a deployed container with at least one container section must be 16 + 2*num_code_sections + types_size + code_size[0] + ... + code_size[num_code_sections-1] + data_size + 2*num_container_sections + container_size[0] + ... + container_size[num_container_sections-1]
+        let total_code_size: u16 = eof_container.header.code_sizes.iter().sum();
+        let total_container_size: u16 = eof_container.header.container_sizes.iter().sum();
+
+        // 16 here is for (2 byte magic + 1 byte version + 1 byte kind type + 2 byte kind length + 1 byte kind code  + 2 bytes num code sections + 1 byte kind container  + 2 bytes num container sections + 1 byte kind data + 2 byte data size + 1 byte terminator)
+        let expected = 16
+            + (2 * eof_container.header.num_code_sections)
+            + eof_container.header.types_size
+            + total_code_size
+            + eof_container.header.data_size
+            + (2 * eof_container.header.num_container_sections)
+            + total_container_size;
+        assert_eq!(
+            eof_bytecode.len() as u16,
+            expected,
+            "Post condition 1 failed"
+        );
+    }
 }
 
 fn bytes2_to_u16(bytes2: &[u8]) -> u16 {
