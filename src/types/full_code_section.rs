@@ -1,14 +1,12 @@
 use std::fmt::Display;
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct FullCodeSection {
     pub types_section: TypesSection,
     pub code_section: Vec<u8>,
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct TypesSection {
     pub inputs: u8,
     pub outputs: Option<u8>,

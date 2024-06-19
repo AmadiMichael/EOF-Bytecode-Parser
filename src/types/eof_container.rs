@@ -2,7 +2,6 @@ use crate::FullCodeSection;
 use std::fmt::Display;
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct EOFContainer {
     pub header: Header,
     pub full_code_section: Vec<FullCodeSection>,
@@ -11,7 +10,6 @@ pub struct EOFContainer {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct Header {
     pub version: u8,
     pub types_size: u16,

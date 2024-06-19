@@ -11,9 +11,13 @@ mod types;
 
 fn main() {
     // Some Examples can be found in ../inputs.json
-    let input = "EF00 01 01 0004 02 0001 0008 03 0001 0030 04 0000 00 00 80 0004 5F 5F 60FF 5F EC00 00 EF00 01 01 0004 02 0001 0004 03 0001 0014 04 0000 00 00 80 0002 5F 5F EE00 EF00 01 01 0004 02 0001 0001 04 0000 00 00 80 0000 00";
+    let input = "0xef000101000404000202000100060000800000aabb6000e0000000";
 
-    let input = input.replace(" ", "");
+    let mut input = input.replace(" ", "").to_lowercase();
+    if input.starts_with("0x") {
+        input = input.strip_prefix("0x").unwrap().to_owned();
+    }
+
     let bytecode = hex::decode(input).unwrap_or_else(|x| {
         println!("Err: {}", x);
         exit(0);
@@ -39,20 +43,19 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
     );
 
     // assert it starts with 0xEF00
-    assert_eq!(
-        eof_bytecode[offset..offset + MAGIC_SIZE],
-        [0xEF, 0x00],
+    assert!(
+        eof_bytecode[offset..offset + MAGIC_SIZE] == [0xEF, 0x00],
         "0xEF00 prefix not present"
     );
     offset += MAGIC_SIZE;
 
     // asserts and set the version
-    assert_eq!(eof_bytecode[offset], 0x01, "Invalid EOF version");
+    assert!(eof_bytecode[offset] == 0x01, "Invalid EOF version");
     eof_container.header.version = eof_bytecode[offset];
     offset += VERSION_SIZE;
 
     // next should be kind types
-    assert_eq!(eof_bytecode[offset], 0x01, "Kind types expected next");
+    assert!(eof_bytecode[offset] == 0x01, "Kind types expected next");
     offset += KIND_SIZE;
 
     // store types size
@@ -67,7 +70,7 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
     );
 
     // for kind code
-    assert_eq!(eof_bytecode[offset], 0x02, "Kind code expected next");
+    assert!(eof_bytecode[offset] == 0x02, "Kind code expected next");
     offset += KIND_SIZE;
 
     // store num code sections
@@ -76,9 +79,8 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
     offset += NUM_CODE_SECTIONS_SIZE;
 
     // assert code section num corelates to types kind size
-    assert_eq!(
-        eof_container.header.num_code_sections * 4,
-        eof_container.header.types_size,
+    assert!(
+        eof_container.header.num_code_sections * 4 == eof_container.header.types_size,
         "Types size not equal to num code sections * 4"
     );
 
@@ -97,8 +99,8 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
         }
 
         let code_size = bytes2_to_u16(&eof_bytecode[offset..offset + CODE_SIZE_SIZE]);
-        assert_ne!(
-            code_size, 0,
+        assert!(
+            code_size > 0,
             "code size cannot be 0, found in section index {}",
             i
         );
@@ -108,6 +110,7 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
         i += 1;
     }
 
+    // if container is next, parse it too
     if eof_bytecode[offset] == 0x03 {
         // kind container
         offset += KIND_SIZE;
@@ -115,12 +118,16 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
         // store num container sections
         eof_container.header.num_container_sections =
             bytes2_to_u16(&eof_bytecode[offset..offset + NUM_CONTAINER_SECTIONS_SIZE]);
+        assert!(
+            eof_container.header.num_container_sections > 0,
+            "Cannot have 0 num of container section when kind container is present"
+        );
         offset += NUM_CONTAINER_SECTIONS_SIZE;
 
         // assert 0 < container sections num <= 256
         assert!(
-            eof_container.header.num_code_sections > 0
-                && eof_container.header.num_code_sections <= MAX_NUM_CONTAINER_SECTIONS as u16,
+            eof_container.header.num_container_sections > 0
+                && eof_container.header.num_container_sections <= MAX_NUM_CONTAINER_SECTIONS as u16,
             "container sections num not > 0 and <= 256"
         );
 
@@ -132,8 +139,8 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
             }
 
             let container_size = bytes2_to_u16(&eof_bytecode[offset..offset + CONTAINER_SIZE_SIZE]);
-            assert_ne!(
-                container_size, 0,
+            assert!(
+                container_size != 0,
                 " size cannot be 0, found in section index {}",
                 i
             );
@@ -145,48 +152,58 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
         }
     }
 
-    // kind data
-    assert_eq!(eof_bytecode[offset], 0x04, "Kind data expected next");
+    // expect kind data next
+    assert!(eof_bytecode[offset] == 0x04, "Kind data expected next");
     offset += KIND_SIZE;
 
     // store data size
     eof_container.header.data_size = bytes2_to_u16(&eof_bytecode[offset..offset + 2]);
     offset += DATA_SIZE_SIZE;
 
-    // confirmCODE_SIZE_SIZE
-    assert_eq!(eof_bytecode[offset], 0x00, "Terminator expected next");
+    // assert terminator is next
+    assert!(eof_bytecode[offset] == 0x00, "Terminator expected next");
     offset += TERMINATOR_SIZE;
 
-    // store types section
-    let mut i = 0;
+    // store types and code sections
+    let mut i: usize = 0;
+    let mut types_offset = offset;
+    offset += eof_container.header.types_size as usize;
     loop {
-        if i == eof_container.header.num_code_sections {
+        if i == eof_container.header.num_code_sections as usize {
             break;
         }
 
+        // store types section
         // types_section.inputs
         let mut full_code_section = FullCodeSection::default();
-        full_code_section.types_section.inputs = eof_bytecode[offset];
-        offset += INPUTS_SIZE;
+        full_code_section.types_section.inputs = eof_bytecode[types_offset];
+        types_offset += INPUTS_SIZE;
 
         // types_section.outputs
         full_code_section.types_section.outputs = {
-            let r = eof_bytecode[offset];
+            let r = eof_bytecode[types_offset];
             if r == 128 {
                 None
             } else {
                 Option::Some(r)
             }
         };
-        offset += OUTPUTS_SIZE;
+        types_offset += OUTPUTS_SIZE;
 
         // types_section.max_stack_height
         full_code_section.types_section.max_stack_height =
-            bytes2_to_u16(&eof_bytecode[offset..offset + MAX_STACK_HEIGHT_SIZE]);
-        offset += MAX_STACK_HEIGHT_SIZE;
-        i += 1;
+            bytes2_to_u16(&eof_bytecode[types_offset..types_offset + MAX_STACK_HEIGHT_SIZE]);
+        types_offset += MAX_STACK_HEIGHT_SIZE;
+
+        // store code section
+        full_code_section.code_section.extend_from_slice(
+            &eof_bytecode[offset..offset + eof_container.header.code_sizes[i] as usize],
+        );
+        offset += eof_container.header.code_sizes[i] as usize;
 
         eof_container.full_code_section.push(full_code_section);
+
+        i += 1;
     }
 
     assert!(
@@ -194,23 +211,6 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
             && eof_container.full_code_section[0].types_section.outputs == None,
         "0th code section must have 0 inputs and 0 outputs"
     );
-
-    // store code section
-    let mut i: usize = 0;
-    loop {
-        if i == eof_container.header.num_code_sections as usize {
-            break;
-        }
-
-        eof_container.full_code_section[i]
-            .code_section
-            .extend_from_slice(
-                &eof_bytecode[offset..offset + eof_container.header.code_sizes[i] as usize],
-            );
-
-        offset += eof_container.header.code_sizes[i] as usize;
-        i += 1;
-    }
 
     // store container section
     let mut i: usize = 0;
@@ -241,14 +241,14 @@ fn parse_eof_bytecode(eof_bytecode: &[u8]) -> EOFContainer {
     }
 
     // assert parsing stopped at end of eof bytecode
-    assert_eq!(offset, eof_bytecode.len(), "Trailing byte after parsing");
+    // Should consider auxilary data ?
+    assert!(offset == eof_bytecode.len(), "Trailing byte after parsing");
 
     post_validations(&eof_container, eof_bytecode);
 
     eof_container
 }
 
-#[allow(unused_variables)]
 fn post_validations(eof_container: &EOFContainer, eof_bytecode: &[u8]) {
     // for validating eof bytecode size against contents of the header based on the specs
 
@@ -262,9 +262,8 @@ fn post_validations(eof_container: &EOFContainer, eof_bytecode: &[u8]) {
             + eof_container.header.types_size
             + total_code_sizes
             + eof_container.header.data_size;
-        assert_eq!(
-            eof_bytecode.len() as u16,
-            expected,
+        assert!(
+            eof_bytecode.len() as u16 == expected,
             "Post condition 1 failed"
         );
     } else {
@@ -280,9 +279,8 @@ fn post_validations(eof_container: &EOFContainer, eof_bytecode: &[u8]) {
             + eof_container.header.data_size
             + (NUM_CONTAINER_SECTIONS_SIZE as u16 * eof_container.header.num_container_sections)
             + total_container_size;
-        assert_eq!(
-            eof_bytecode.len() as u16,
-            expected,
+        assert!(
+            eof_bytecode.len() as u16 == expected,
             "Post condition 2 failed"
         );
     }
