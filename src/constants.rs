@@ -1,0 +1,15 @@
+pub const MAGIC_SIZE: usize = 2;
+pub const KIND_SIZE: usize = 1;
+pub const VERSION_SIZE: usize = 1;
+pub const TYPES_SIZE_SIZE: usize = 2;
+pub const NUM_CODE_SECTIONS_SIZE: usize = 2;
+pub const CODE_SIZE_SIZE: usize = 2;
+pub const NUM_CONTAINER_SECTIONS_SIZE: usize = 2;
+pub const CONTAINER_SIZE_SIZE: usize = 2;
+pub const DATA_SIZE_SIZE: usize = 2;
+pub const TERMINATOR_SIZE: usize = 1;
+pub const INPUTS_SIZE: usize = 1;
+pub const OUTPUTS_SIZE: usize = 1;
+pub const MAX_STACK_HEIGHT_SIZE: usize = 2;
+pub const MAX_NUM_CODE_SECTIONS: usize = 1024;
+pub const MAX_NUM_CONTAINER_SECTIONS: usize = 256;
