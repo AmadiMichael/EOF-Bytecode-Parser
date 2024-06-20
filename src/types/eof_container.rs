@@ -1,5 +1,5 @@
 use crate::types::full_code_section::FullCodeSection;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 #[derive(Debug)]
 pub struct EOFContainer {
@@ -22,6 +22,12 @@ pub struct Header {
 
 impl Display for EOFContainer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.stringify())
+    }
+}
+
+impl EOFContainer {
+    fn stringify(&self) -> String {
         let mut data_section = String::from("0x");
         data_section.push_str(&hex::encode(&self.data_section));
 
@@ -44,8 +50,7 @@ impl Display for EOFContainer {
             }
         }
 
-        write!(
-            f,
+        format!(
             "
             HEADER:
                 version: {},
