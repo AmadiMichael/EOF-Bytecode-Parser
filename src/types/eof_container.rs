@@ -1,4 +1,4 @@
-use crate::FullCodeSection;
+use crate::types::full_code_section::FullCodeSection;
 use std::fmt::Display;
 
 #[derive(Debug)]
