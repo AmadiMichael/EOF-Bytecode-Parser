@@ -37,5 +37,5 @@ fn main() {
     });
 
     let eof_container = parse_eof_bytecode(&bytecode);
-    println!("{}", eof_container);
+    println!("{}", eof_container.unwrap());
 }
