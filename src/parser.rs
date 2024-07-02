@@ -91,11 +91,6 @@ pub fn parse_eof_bytecode(eof_bytecode: &[u8]) -> Result<EOFContainer, String> {
         // store num container sections
         eof_container.header.num_container_sections =
             bytes2_to_u16(&eof_bytecode[offset..offset + NUM_CONTAINER_SECTIONS_SIZE]);
-        if eof_container.header.num_container_sections == 0 {
-            return Err(
-                "Cannot have 0 num of container section when kind container is present".to_owned(),
-            );
-        }
 
         offset += NUM_CONTAINER_SECTIONS_SIZE;
 
@@ -179,7 +174,7 @@ pub fn parse_eof_bytecode(eof_bytecode: &[u8]) -> Result<EOFContainer, String> {
     if !(eof_container.full_code_section[0].types_section.inputs == 0
         && eof_container.full_code_section[0].types_section.outputs == None)
     {
-        return Err("0th code section must have 0 inputs and 0 outputs".to_owned());
+        return Err("0th code section must have 0 inputs and non returning outputs".to_owned());
     }
 
     // store container section
