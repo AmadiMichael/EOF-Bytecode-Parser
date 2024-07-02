@@ -1,7 +1,7 @@
 use crate::types::full_code_section::FullCodeSection;
 use std::fmt::{Debug, Display};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct EOFContainer {
     pub header: Header,
     pub full_code_section: Vec<FullCodeSection>,
@@ -9,7 +9,7 @@ pub struct EOFContainer {
     pub data_section: Vec<u8>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Header {
     pub version: u8,
     pub types_size: u16,
@@ -75,24 +75,5 @@ impl EOFContainer {
             container_sections,
             data_section
         )
-    }
-}
-
-impl Default for EOFContainer {
-    fn default() -> Self {
-        EOFContainer {
-            header: Header {
-                version: 0,
-                types_size: 0,
-                num_code_sections: 0,
-                code_sizes: Vec::new(),
-                num_container_sections: 0,
-                container_sizes: Vec::new(),
-                data_size: 0,
-            },
-            full_code_section: Vec::new(),
-            container_section: Vec::new(),
-            data_section: Vec::new(),
-        }
     }
 }
